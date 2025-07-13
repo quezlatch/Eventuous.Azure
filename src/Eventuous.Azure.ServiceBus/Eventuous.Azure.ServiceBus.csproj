@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.20.1" />
+    <PackageReference Include="Eventuous.Producers" Version="0.15.1" />
+    <PackageReference Include="Eventuous.Subscriptions" Version="0.15.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.7" />
+  </ItemGroup>
+
+      <ItemGroup>
+        <Using Include="Azure.Messaging.ServiceBus"/>
+        <Using Include="Microsoft.Extensions.Logging"/>
+    </ItemGroup>
+
+</Project>

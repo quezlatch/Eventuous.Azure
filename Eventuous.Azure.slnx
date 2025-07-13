@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Eventuous.Azure.ServiceBus/Eventuous.Azure.ServiceBus.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Eventuous.Azure.ServiceBus.Tests/Eventuous.Azure.ServiceBus.Tests.csproj" />
+  </Folder>
+</Solution>
