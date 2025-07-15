@@ -8,11 +8,10 @@ public class ServiceBusProducer : BaseProducer<ServiceBusProduceOptions>, IHoste
 {
     // maybe want something a bit more focused on Azure Service Bus?
     static readonly ProducerTracingOptions TracingOptions = new() { MessagingSystem = "azure-service-bus", DestinationKind = "topic", ProduceOperation = "publish" };
-    private readonly ServiceBusClient client;
     private readonly ServiceBusProducerOptions options;
-    private readonly IEventSerializer serializer;
     private readonly ILogger<ServiceBusProducer>? log;
     private readonly ServiceBusSender sender;
+    private readonly ServiceBusMessageBatchBuilder messageBatchBuilder;
 
     public ServiceBusProducer(
         ServiceBusClient client,
@@ -20,11 +19,10 @@ public class ServiceBusProducer : BaseProducer<ServiceBusProduceOptions>, IHoste
         IEventSerializer? serializer = null,
         ILogger<ServiceBusProducer>? log = null) : base(TracingOptions)
     {
-        this.client = client;
         this.options = options;
-        this.serializer = serializer ?? DefaultEventSerializer.Instance;
         this.log = log;
         this.sender = client.CreateSender(options.QueueOrTopicName, options.SenderOptions);
+        this.messageBatchBuilder = new ServiceBusMessageBatchBuilder(sender, serializer, options.Attributes, SetActivityMessageType);
         log?.LogInformation("ServiceBusProducer created for {QueueOrTopicName}", options.QueueOrTopicName);
     }
 
@@ -52,41 +50,26 @@ public class ServiceBusProducer : BaseProducer<ServiceBusProduceOptions>, IHoste
 
     protected override async Task ProduceMessages(StreamName stream, IEnumerable<ProducedMessage> messages, ServiceBusProduceOptions? options, CancellationToken cancellationToken = default)
     {
-        await foreach (var batch in CreateMessageBatches(messages, stream, options, cancellationToken))
+        await foreach (var (batch, produced) in messageBatchBuilder.CreateMessageBatches(messages, stream, options, cancellationToken))
         {
             log?.LogInformation("Sending batch of {MessageCount} messages to {QueueOrTopicName}", batch.Count, this.options.QueueOrTopicName);
             try
             {
                 await sender.SendMessagesAsync(batch, cancellationToken);
+                foreach (var message in produced)
+                {
+                    await message.Ack<ServiceBusProducer>();
+                }
                 log?.LogInformation("Batch sent successfully to {QueueOrTopicName}", this.options.QueueOrTopicName);
             }
             catch (Exception ex)
             {
                 log?.LogError(ex, "Failed to send batch to {QueueOrTopicName}", this.options.QueueOrTopicName);
-                throw;
-            }
-        }
-        ;
-    }
-
-    private async IAsyncEnumerable<ServiceBusMessageBatch> CreateMessageBatches(IEnumerable<ProducedMessage> messages, StreamName stream, ServiceBusProduceOptions? options, [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var messageBuilder = new ServiceBusMessageBuilder(serializer, stream, options);
-        using var enumerator = messages.GetEnumerator();
-        while (enumerator.MoveNext())
-        {
-            using var batch = await sender.CreateMessageBatchAsync();
-            var message = messageBuilder.CreateServiceBusMessage(enumerator.Current);
-            while (batch.TryAddMessage(message) && enumerator.MoveNext())
-            {
-                if (cancellationToken.IsCancellationRequested)
+                foreach (var message in produced)
                 {
-                    log?.LogWarning("Message production cancelled for {QueueOrTopicName}", this.options.QueueOrTopicName);
-                    yield break;
+                    await message.Nack<ServiceBusProducer>("Failed to send batch", ex);
                 }
-                message = messageBuilder.CreateServiceBusMessage(enumerator.Current);
             }
-            yield return batch;
         }
     }
 }

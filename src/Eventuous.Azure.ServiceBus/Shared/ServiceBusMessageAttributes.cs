@@ -1,7 +1,7 @@
-namespace Eventuous.Azure.ServiceBus.Producers;
+namespace Eventuous.Azure.ServiceBus.Shared;
 
-public static class ServiceBusMessageAttributes
+public class ServiceBusMessageAttributes
 {
-    public const string EventType = "eventType";
-    public const string StreamName = "streamName";
+    public string EventType { get; set; } = "eventType";
+    public string StreamName { get; set; } = "streamName";
 }

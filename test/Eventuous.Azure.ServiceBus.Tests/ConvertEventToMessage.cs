@@ -1,4 +1,4 @@
-﻿using Azure.Messaging.ServiceBus;
+using Azure.Messaging.ServiceBus;
 using Eventuous.Azure.ServiceBus.Producers;
 
 namespace Eventuous.Azure.ServiceBus.Tests;
@@ -10,7 +10,7 @@ public class ConvertEventToMessage
 
     public ConvertEventToMessage()
     {
-        var builder = new ServiceBusMessageBuilder(DefaultEventSerializer.Instance, "test-stream", new ServiceBusProduceOptions
+        var builder = new ServiceBusMessageBuilder(DefaultEventSerializer.Instance, "test-stream", new(), new ServiceBusProduceOptions
         {
             Subject = "test-subject",
             To = "test-to",

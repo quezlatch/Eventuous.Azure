@@ -1,3 +1,4 @@
+using Eventuous.Azure.ServiceBus.Shared;
 using Eventuous.Producers;
 
 namespace Eventuous.Azure.ServiceBus.Producers;
@@ -13,20 +14,21 @@ public class ServiceBusMessageBuilder
     private readonly IEventSerializer serializer;
     private readonly string streamName;
     private readonly ServiceBusProduceOptions? options;
+    private readonly ServiceBusMessageAttributes attributes;
     private readonly Action<string>? setActivityMessageType;
 
-    public ServiceBusMessageBuilder(IEventSerializer serializer, string streamName, ServiceBusProduceOptions? options = null, Action<string>? setActivityMessageType = null)
+    public ServiceBusMessageBuilder(IEventSerializer serializer, string streamName, ServiceBusMessageAttributes attributes, ServiceBusProduceOptions? options = null, Action<string>? setActivityMessageType = null)
     {
         this.serializer = serializer;
         this.streamName = streamName;
         this.options = options;
+        this.attributes = attributes;
         this.setActivityMessageType = setActivityMessageType;
     }
     public ServiceBusMessage CreateServiceBusMessage(ProducedMessage message)
     {
         var (messageType, contentType, payload) = serializer.SerializeEvent(message.Message);
         setActivityMessageType?.Invoke(messageType);
-        IEnumerable<KeyValuePair<string, object?>> applicationProperties = GetCustomApplicationProperties(message, messageType);
 
         var serviceBusMessage = new ServiceBusMessage(payload)
         {
@@ -39,7 +41,7 @@ public class ServiceBusMessageBuilder
             ReplyTo = options?.ReplyTo
         };
 
-        foreach (var property in applicationProperties)
+        foreach (var property in GetCustomApplicationProperties(message, messageType))
         {
             serviceBusMessage.ApplicationProperties.Add(property);
         }
@@ -47,13 +49,15 @@ public class ServiceBusMessageBuilder
         return serviceBusMessage;
     }
 
-    private IEnumerable<KeyValuePair<string, object?>> GetCustomApplicationProperties(ProducedMessage message, string messageType) =>
+    private IEnumerable<KeyValuePair<string, object>> GetCustomApplicationProperties(ProducedMessage message, string messageType) =>
      (message.Metadata ?? [])
         .Concat(message.AdditionalHeaders ?? [])
         .Concat(
         [
-            new (ServiceBusMessageAttributes.EventType, messageType),
-            new (ServiceBusMessageAttributes.StreamName, streamName),
+            new (attributes.EventType, messageType),
+            new (attributes.StreamName, streamName),
         ])
-        .Where(pair => !ReservedAttributes.Contains(pair.Key));
+        .Where(pair => !ReservedAttributes.Contains(pair.Key))
+        .Where(pair => pair.Value is not null)
+        .Select(pair => new KeyValuePair<string, object>(pair.Key, pair.Value!));
 }
