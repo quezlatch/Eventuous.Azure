@@ -28,5 +28,5 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Eventuous.Azure.ServiceBus/Eventuous.Azure.ServiceBus.csproj" />
   </ItemGroup>
-
+  
 </Project>

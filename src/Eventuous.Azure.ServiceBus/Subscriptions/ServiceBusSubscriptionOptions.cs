@@ -6,7 +6,6 @@ namespace Eventuous.Azure.ServiceBus.Subscriptions;
 public record ServiceBusSubscriptionOptions : SubscriptionOptions
 {
     public required string QueueOrTopicName { get; set; }
-    public required string Subscription { get; set; }
     public int MaxConcurrentCalls { get; set; }
     public int PrefetchCount { get; set; }
     public ServiceBusProcessorOptions ProcessorOptions { get; set; } = new();

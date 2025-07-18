@@ -29,7 +29,7 @@ public class ServiceBusMessageBatchBuilder
         using var enumerator = messages.GetEnumerator();
         while (enumerator.MoveNext())
         {
-            using var batch = await sender.CreateMessageBatchAsync();
+            using var batch = await sender.CreateMessageBatchAsync(cancellationToken);
             var produced = new List<ProducedMessage>();
             var current = enumerator.Current;
             var message = messageBuilder.CreateServiceBusMessage(current);

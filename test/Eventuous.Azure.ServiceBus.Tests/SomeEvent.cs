@@ -1,7 +1,7 @@
 namespace Eventuous.Azure.ServiceBus.Tests;
 
 [EventType("V1.SomeEvent")]
-public class SomeEvent
+public record SomeEvent
 {
     static SomeEvent()
     {
