@@ -1,6 +1,7 @@
 using Eventuous.Subscriptions;
 using Eventuous.Subscriptions.Context;
 using Eventuous.Subscriptions.Filters;
+using Eventuous.Subscriptions.Logging;
 using Microsoft.Extensions.Logging;
 
 namespace Eventuous.Azure.ServiceBus.Subscriptions;
@@ -20,7 +21,7 @@ public class ServiceBusSubscription : EventSubscription<ServiceBusSubscriptionOp
 
     protected override ValueTask Subscribe(CancellationToken cancellationToken)
     {
-        processor = client.CreateProcessor(Options.QueueOrTopicName, Options.SubscriptionId, Options.ProcessorOptions);
+        processor = client.CreateProcessor(Options.QueueOrTopicName, Options.ProcessorOptions);
         processor.ProcessMessageAsync += HandleMessage;
 
         processor.ProcessErrorAsync += defaultErrorHandler;
@@ -32,35 +33,43 @@ public class ServiceBusSubscription : EventSubscription<ServiceBusSubscriptionOp
             if (ct.IsCancellationRequested) return;
             var msg = arg.Message;
             var eventType = msg.ApplicationProperties[Options.Attributes.EventType].ToString()
-            ?? throw new InvalidOperationException("Event type is missing in message properties");
+                ?? throw new InvalidOperationException("Event type is missing in message properties");
             var contentType = msg.ContentType;
             // Should this be a stream name? or topic or something
             var streamName = msg.ApplicationProperties[Options.Attributes.StreamName].ToString()
-            ?? throw new InvalidOperationException("Stream name is missing in message properties");
+                ?? throw new InvalidOperationException("Stream name is missing in message properties");
+
+            Logger.Current = Log;
 
             var evt = DeserializeData(contentType, eventType, msg.Body, streamName);
 
             var ctx = new MessageConsumeContext(
-    msg.MessageId,
-    eventType,
-    contentType,
-streamName,
-    0,
-    0,
-    0,
-    Sequence++,
-    msg.EnqueuedTime.UtcDateTime,
-    evt,
-    AsMeta(msg.ApplicationProperties),
-    SubscriptionId,
-    ct
-);
+                msg.MessageId,
+                eventType,
+                contentType,
+                streamName,
+                0,
+                0,
+                0,
+                Sequence++,
+                msg.EnqueuedTime.UtcDateTime,
+                evt,
+                AsMeta(msg.ApplicationProperties),
+                SubscriptionId,
+                ct
+            );
 
             try
             {
                 await Handler(ctx);
+                await arg.CompleteMessageAsync(msg, ct);
             }
-            catch (Exception ex) { await defaultErrorHandler(new(ex, ServiceBusErrorSource.Abandon, arg.FullyQualifiedNamespace, arg.EntityPath, arg.Identifier, arg.CancellationToken)); }
+            catch (Exception ex)
+            {
+                await arg.AbandonMessageAsync(msg, null, ct); // Abandoning the message will make it available for reprocessing, or dead letter it?
+                await defaultErrorHandler(new(ex, ServiceBusErrorSource.Abandon, arg.FullyQualifiedNamespace, arg.EntityPath, arg.Identifier, arg.CancellationToken));
+                Log.ErrorLog?.Log(ex, "Error processing message: {MessageId}", msg.MessageId);
+            }
         }
     }
 

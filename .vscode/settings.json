@@ -1,5 +1,6 @@
 {
     "dotnet.defaultSolution": "Eventuous.Azure.slnx",
     "editor.formatOnSave": true,
-    "csharp.format.enable": true
+    "csharp.format.enable": true,
+    "csharp.debug.justMyCode": true
 }

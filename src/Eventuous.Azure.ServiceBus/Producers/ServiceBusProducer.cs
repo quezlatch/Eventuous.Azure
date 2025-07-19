@@ -72,4 +72,9 @@ public class ServiceBusProducer : BaseProducer<ServiceBusProduceOptions>, IHoste
             }
         }
     }
+
+    public async Task Produce1(StreamName stream, IEnumerable<ProducedMessage> messages, ServiceBusProduceOptions? options, CancellationToken cancellationToken = default)
+    {
+        await ProduceMessages(stream, messages, options, cancellationToken);
+    }
 }
