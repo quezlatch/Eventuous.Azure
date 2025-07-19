@@ -21,7 +21,7 @@ public class ServiceBusSubscription : EventSubscription<ServiceBusSubscriptionOp
 
     protected override ValueTask Subscribe(CancellationToken cancellationToken)
     {
-        processor = client.CreateProcessor(Options.QueueOrTopicName, Options.ProcessorOptions);
+        processor = Options.QueueOrTopic.MakeProcessor(client, Options);
         processor.ProcessMessageAsync += HandleMessage;
 
         processor.ProcessErrorAsync += defaultErrorHandler;

@@ -11,19 +11,24 @@ public class TestEventHandler(TimeSpan? delay = null) : BaseEventHandler
 
     public int Count { get; private set; }
     readonly Observer<object> _observer = new();
+    readonly List<object> _messages = new();
 
     public On<object> AssertThat() => Hypothesis.On(_observer);
 
     public override async ValueTask<EventHandlingStatus> HandleEvent(IMessageConsumeContext context)
     {
-        TestContext.Current.TestOutputHelper?.WriteLine(
-            $"Handling event {context.MessageType} with id {context.MessageId} in {context.Stream}");
         await Task.Delay(_delay);
-        await _observer.Add(context.Message!, context.CancellationToken);
+        object data = context.Message!;
+        _messages.Add(data);
+        await _observer.Add(data, context.CancellationToken);
         Count++;
 
         return EventHandlingStatus.Success;
     }
 
-    public IEnumerable<object> Messages => _observer.ToBlockingEnumerable();
+    /// <summary>
+    /// Gets the messages that have been handled by this event handler.
+    /// Did try and get straight from the observer, but it kept blocking
+    /// </summary>
+    public IEnumerable<object> Messages => _messages;
 }

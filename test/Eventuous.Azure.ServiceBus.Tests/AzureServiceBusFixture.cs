@@ -13,10 +13,6 @@ namespace Eventuous.Azure.ServiceBus.Tests;
 public class AzureServiceBusFixture(IMessageSink messageSink)
     : ContainerFixture<ServiceBusBuilder, ServiceBusContainer>(messageSink)
 {
-    public readonly string QueueName = "queue.1";
-    public readonly string TopicName = "topic.1";
-    public readonly string SubscriptionName = "subscription.1";
-
     public ServiceBusClient Client { get; private set; } = null!;
     public string ConnectionString { get; private set; } = null!;
 

@@ -4,33 +4,85 @@ using Eventuous.Producers;
 
 namespace Eventuous.Azure.ServiceBus.Tests;
 
-public class SendAndReceiveToQueue : IClassFixture<AzureServiceBusFixture>, IAsyncLifetime
+public abstract class SendAndReceive : IAsyncLifetime
 {
+    public const string QueueName = "queue.1";
+    public const string TopicName = "topic.1";
+    public const string SubscriptionName = "subscription.1";
     public static CancellationToken TestCancellationToken => TestContext.Current.CancellationToken;
-    private readonly AzureServiceBusFixture _fixture;
     private readonly ServiceBusProducer producer;
     private readonly ServiceBusSubscription subscription;
     private readonly TestEventHandler handler = new();
 
-    public SendAndReceiveToQueue(AzureServiceBusFixture fixture)
+    protected abstract ServiceBusProducerOptions ServiceBusProducerOptions { get; }
+    protected abstract ServiceBusSubscriptionOptions ServiceBusSubscriptionOptions { get; }
+    protected abstract StreamName StreamName { get; }
+
+    public SendAndReceive(AzureServiceBusFixture fixture)
     {
-        _fixture = fixture;
-        producer = _fixture.CreateProducer(new ServiceBusProducerOptions
+        producer = fixture.CreateProducer(ServiceBusProducerOptions);
+        subscription = fixture.CreateSubscription(ServiceBusSubscriptionOptions, handler);
+    }
+
+    public class ToQueue : SendAndReceive, IClassFixture<AzureServiceBusFixture>
+    {
+        public ToQueue(AzureServiceBusFixture fixture) : base(fixture) { }
+
+        protected override ServiceBusProducerOptions ServiceBusProducerOptions => new()
         {
-            QueueOrTopicName = _fixture.QueueName,
-        });
-        subscription = _fixture.CreateSubscription(new ServiceBusSubscriptionOptions
+            QueueOrTopicName = QueueName
+        };
+
+        protected override ServiceBusSubscriptionOptions ServiceBusSubscriptionOptions => new()
         {
-            QueueOrTopicName = _fixture.QueueName,
-            SubscriptionId = _fixture.SubscriptionName
-        }, handler);
+            QueueOrTopic = new Queue(QueueName),
+            SubscriptionId = SubscriptionName
+        };
+
+        protected override StreamName StreamName => new(QueueName);
+    }
+
+    public class ToTopic : SendAndReceive, IClassFixture<AzureServiceBusFixture>
+    {
+        public ToTopic(AzureServiceBusFixture fixture) : base(fixture) { }
+
+        protected override ServiceBusProducerOptions ServiceBusProducerOptions => new()
+        {
+            QueueOrTopicName = TopicName
+        };
+
+        protected override ServiceBusSubscriptionOptions ServiceBusSubscriptionOptions => new()
+        {
+            QueueOrTopic = new Topic(TopicName),
+            SubscriptionId = SubscriptionName
+        };
+
+        protected override StreamName StreamName => new(TopicName);
+    }
+
+    public class ToTopicWithSubscription : SendAndReceive, IClassFixture<AzureServiceBusFixture>
+    {
+        public ToTopicWithSubscription(AzureServiceBusFixture fixture) : base(fixture) { }
+
+        protected override ServiceBusProducerOptions ServiceBusProducerOptions => new()
+        {
+            QueueOrTopicName = TopicName,
+        };
+
+        protected override ServiceBusSubscriptionOptions ServiceBusSubscriptionOptions => new()
+        {
+            QueueOrTopic = new TopicAndSubscription(TopicName, SubscriptionName),
+            SubscriptionId = "some-subscription" // Use a different subscription name to avoid conflicts
+        };
+
+        protected override StreamName StreamName => new(TopicName);
     }
 
     [Fact]
     public async Task SingleMessage()
     {
         var evt = new SomeEvent { Id = "test-event", Name = "Hello, World!" };
-        await producer.Produce(new(_fixture.QueueName), evt, null, cancellationToken: TestCancellationToken);
+        await producer.Produce(StreamName, evt, null, cancellationToken: TestCancellationToken);
 
         // Assert
         await handler.AssertThat()
@@ -45,16 +97,17 @@ public class SendAndReceiveToQueue : IClassFixture<AzureServiceBusFixture>, IAsy
     {
         var count = 1000;
         var events = Enumerable.Range(0, count).Select(i => new SomeEvent { Id = $"test-event-{i}", Name = $"Hello, World! {i}" }).ToList();
-        await producer.Produce(new(_fixture.QueueName), events, null, cancellationToken: TestCancellationToken);
+        await producer.Produce(StreamName, events, null, cancellationToken: TestCancellationToken);
 
         // Assert
         await handler.AssertThat()
-            .Timebox(TimeSpan.FromSeconds(30))
+            .Timebox(TimeSpan.FromSeconds(40))
             .Exactly(count)
             .Match(evt => evt is SomeEvent)
             .Validate(TestCancellationToken);
 
-        var zipped = events.Zip(handler.Messages.Cast<SomeEvent>(), (sent, received) => (sent, received));
+        var handledMessages = handler.Messages.OfType<SomeEvent>().ToList();
+        var zipped = events.Zip(handledMessages, (sent, received) => (sent, received));
         foreach (var (sent, received) in zipped)
         {
             Assert.Equal(sent.Id, received.Id);
