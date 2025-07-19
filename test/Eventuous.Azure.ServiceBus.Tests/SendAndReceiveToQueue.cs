@@ -29,23 +29,42 @@ public class SendAndReceiveToQueue : IClassFixture<AzureServiceBusFixture>, IAsy
     [Fact]
     public async Task SingleMessage()
     {
-        // Arrange
-        var client = _fixture.Client;
-
         var evt = new SomeEvent { Id = "test-event", Name = "Hello, World!" };
         await producer.Produce(new(_fixture.QueueName), evt, null, cancellationToken: TestCancellationToken);
 
         // Assert
         await handler.AssertThat()
             .Timebox(TimeSpan.FromSeconds(10))
-            .Any()
+            .Single()
             .Match(evt => evt is SomeEvent)
-            .Validate(TestContext.Current.CancellationToken);
+            .Validate(TestCancellationToken);
+    }
+
+    [Fact]
+    public async Task LoadsOfMessages()
+    {
+        var count = 1000;
+        var events = Enumerable.Range(0, count).Select(i => new SomeEvent { Id = $"test-event-{i}", Name = $"Hello, World! {i}" }).ToList();
+        await producer.Produce(new(_fixture.QueueName), events, null, cancellationToken: TestCancellationToken);
+
+        // Assert
+        await handler.AssertThat()
+            .Timebox(TimeSpan.FromSeconds(30))
+            .Exactly(count)
+            .Match(evt => evt is SomeEvent)
+            .Validate(TestCancellationToken);
+
+        var zipped = events.Zip(handler.Messages.Cast<SomeEvent>(), (sent, received) => (sent, received));
+        foreach (var (sent, received) in zipped)
+        {
+            Assert.Equal(sent.Id, received.Id);
+            Assert.Equal(sent.Name, received.Name);
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await producer.StopAsync(TestContext.Current.CancellationToken);
+        await producer.StopAsync(TestCancellationToken);
         await subscription.Unsubscribe(id => { }, TestCancellationToken);
         await subscription.DisposeAsync();
         await producer.DisposeAsync();
@@ -53,7 +72,7 @@ public class SendAndReceiveToQueue : IClassFixture<AzureServiceBusFixture>, IAsy
 
     public async ValueTask InitializeAsync()
     {
-        await producer.StartAsync(TestContext.Current.CancellationToken);
+        await producer.StartAsync(TestCancellationToken);
         await subscription.Subscribe(id => { }, (id, reason, ex) => { }, TestCancellationToken);
     }
 }

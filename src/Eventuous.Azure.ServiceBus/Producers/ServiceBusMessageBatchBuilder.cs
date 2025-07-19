@@ -27,16 +27,16 @@ public class ServiceBusMessageBatchBuilder
     {
         var messageBuilder = new ServiceBusMessageBuilder(serializer, stream, attributes, options, setActivityMessageType);
         using var enumerator = messages.GetEnumerator();
-        while (enumerator.MoveNext())
+        bool notDone = enumerator.MoveNext();
+        while (notDone)
         {
             using var batch = await sender.CreateMessageBatchAsync(cancellationToken);
             var produced = new List<ProducedMessage>();
-            var current = enumerator.Current;
-            var message = messageBuilder.CreateServiceBusMessage(current);
-            while (batch.TryAddMessage(message))
+            while (batch.TryAddMessage(messageBuilder.CreateServiceBusMessage(enumerator.Current)))
             {
-                produced.Add(current);
-                if (!enumerator.MoveNext())
+                produced.Add(enumerator.Current);
+                notDone = enumerator.MoveNext();
+                if (!notDone)
                     break;
             }
             if (cancellationToken.IsCancellationRequested)

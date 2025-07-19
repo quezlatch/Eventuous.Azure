@@ -24,4 +24,6 @@ public class TestEventHandler(TimeSpan? delay = null) : BaseEventHandler
 
         return EventHandlingStatus.Success;
     }
+
+    public IEnumerable<object> Messages => _observer.ToBlockingEnumerable();
 }
