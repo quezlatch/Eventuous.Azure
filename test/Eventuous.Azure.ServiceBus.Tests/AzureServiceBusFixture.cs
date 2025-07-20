@@ -10,6 +10,13 @@ using Xunit.Sdk;
 
 namespace Eventuous.Azure.ServiceBus.Tests;
 
+[CollectionDefinition(nameof(AzureServiceBusFixture), DisableParallelization = true)]
+public class AzureServiceBusCollection : ICollectionFixture<AzureServiceBusFixture>
+{
+    // This class is used to define a collection fixture for the Azure Service Bus tests.
+    // It ensures that the tests in this collection are run sequentially and share the same fixture instance.
+}
+
 public class AzureServiceBusFixture(IMessageSink messageSink)
     : ContainerFixture<ServiceBusBuilder, ServiceBusContainer>(messageSink)
 {

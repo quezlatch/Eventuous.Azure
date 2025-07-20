@@ -32,7 +32,8 @@ public abstract class SendAndReceive : IAsyncLifetime
         metadata = new Metadata().With(MetaTags.CorrelationId, correlationId);
     }
 
-    public class ToQueue : SendAndReceive, IClassFixture<AzureServiceBusFixture>
+    [Collection(nameof(AzureServiceBusFixture))]
+    public class ToQueue : SendAndReceive
     {
         public ToQueue(AzureServiceBusFixture fixture) : base(fixture) { }
 
@@ -50,7 +51,8 @@ public abstract class SendAndReceive : IAsyncLifetime
         protected override StreamName StreamName => new(QueueName);
     }
 
-    public class ToTopic : SendAndReceive, IClassFixture<AzureServiceBusFixture>
+    [Collection(nameof(AzureServiceBusFixture))]
+    public class ToTopic : SendAndReceive
     {
         public ToTopic(AzureServiceBusFixture fixture) : base(fixture) { }
 
@@ -68,7 +70,8 @@ public abstract class SendAndReceive : IAsyncLifetime
         protected override StreamName StreamName => new(TopicName);
     }
 
-    public class ToTopicWithSubscription : SendAndReceive, IClassFixture<AzureServiceBusFixture>
+    [Collection(nameof(AzureServiceBusFixture))]
+    public class ToTopicWithSubscription : SendAndReceive
     {
         public ToTopicWithSubscription(AzureServiceBusFixture fixture) : base(fixture) { }
 
