@@ -10,4 +10,10 @@ public record SomeEvent
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string Name { get; set; } = "Some Event";
     public byte[]? BigData { get; set; } = new byte[1000];
+
+    public static SomeEvent Create() =>
+         new() { Id = "test-event", Name = "Hello, World!" };
+
+    public static SomeEvent Create(int i) =>
+        new() { Id = $"test-event-{i}", Name = $"Hello, World! {i}" };
 }

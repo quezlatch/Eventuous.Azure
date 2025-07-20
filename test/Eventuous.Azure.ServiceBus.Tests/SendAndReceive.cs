@@ -92,8 +92,7 @@ public abstract class SendAndReceive : IAsyncLifetime
     [Fact]
     public async Task SingleMessage()
     {
-        var evt = new SomeEvent { Id = "test-event", Name = "Hello, World!" };
-        await producer.Produce(StreamName, evt, metadata, cancellationToken: TestCancellationToken);
+        await producer.Produce(StreamName, SomeEvent.Create(), metadata, cancellationToken: TestCancellationToken);
 
         // Assert
         await handler.AssertThat()
@@ -107,7 +106,7 @@ public abstract class SendAndReceive : IAsyncLifetime
     public async Task LoadsOfMessages()
     {
         var count = 1000;
-        var events = Enumerable.Range(0, count).Select(i => new SomeEvent { Id = $"test-event-{i}", Name = $"Hello, World! {i}" }).ToList();
+        var events = Enumerable.Range(0, count).Select(SomeEvent.Create).ToList();
         await producer.Produce(StreamName, events, metadata, cancellationToken: TestCancellationToken);
 
         // Assert
