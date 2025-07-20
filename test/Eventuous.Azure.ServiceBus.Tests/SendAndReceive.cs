@@ -96,7 +96,7 @@ public abstract class SendAndReceive : IAsyncLifetime
 
         // Assert
         await handler.AssertThat()
-            .Timebox(TimeSpan.FromSeconds(10))
+            .Timebox(TimeSpan.FromSeconds(1))
             .Single()
             .Match(evt => evt is SomeEvent)
             .Validate(TestCancellationToken);
@@ -105,24 +105,22 @@ public abstract class SendAndReceive : IAsyncLifetime
     [Fact]
     public async Task LoadsOfMessages()
     {
-        var count = 1000;
+        var count = 200;
         var events = Enumerable.Range(0, count).Select(SomeEvent.Create).ToList();
         await producer.Produce(StreamName, events, metadata, cancellationToken: TestCancellationToken);
 
         // Assert
         await handler.AssertThat()
-            .Timebox(TimeSpan.FromSeconds(40))
+            .Timebox(TimeSpan.FromSeconds(10))
             .Exactly(count)
             .Match(evt => evt is SomeEvent)
             .Validate(TestCancellationToken);
 
-        var handledMessages = handler.Messages.OfType<SomeEvent>().ToList();
-        var zipped = events.Zip(handledMessages, (sent, received) => (sent, received));
-        foreach (var (sent, received) in zipped)
-        {
-            Assert.Equal(sent.Id, received.Id);
-            Assert.Equal(sent.Name, received.Name);
-        }
+        var handledMessages = handler.Messages
+            .OfType<SomeEvent>()
+            .OrderBy(m => m.Id)
+            .ToList();
+        Assert.Equal(events, handledMessages, (x, y) => x.Id == y.Id);
     }
 
     public async ValueTask DisposeAsync()

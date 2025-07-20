@@ -15,5 +15,5 @@ public record SomeEvent
          new() { Id = "test-event", Name = "Hello, World!" };
 
     public static SomeEvent Create(int i) =>
-        new() { Id = $"test-event-{i}", Name = $"Hello, World! {i}" };
+        new() { Id = $"test-event-{i:0000}", Name = $"Hello, World! {i}" };
 }

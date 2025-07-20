@@ -62,7 +62,8 @@ public class AzureServiceBusFixture(IMessageSink messageSink)
         );
 
     /// <summary>
-    /// So that we can use the same service bus subscription for multiple tests
+    /// So that we can use the same service bus subscription for multiple tests.
+    /// Probably serves no purpose, but it's a nice pattern to have.
     /// </summary>
     /// <param name="correlationId"></param>
     /// <returns></returns>
