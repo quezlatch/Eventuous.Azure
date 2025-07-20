@@ -1,5 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.20.1" />
     <PackageReference Include="Eventuous.Producers" Version="0.15.1" />
@@ -7,9 +12,13 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.7" />
   </ItemGroup>
 
-      <ItemGroup>
-        <Using Include="Azure.Messaging.ServiceBus"/>
-        <Using Include="Microsoft.Extensions.Logging"/>
-    </ItemGroup>
+  <ItemGroup>
+    <Using Include="Azure.Messaging.ServiceBus" />
+    <Using Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Eventuous.Azure.ServiceBus.Tests" />
+  </ItemGroup>
 
 </Project>

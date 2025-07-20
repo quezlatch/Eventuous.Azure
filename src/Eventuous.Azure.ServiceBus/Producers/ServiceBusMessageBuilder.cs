@@ -3,7 +3,7 @@ using Eventuous.Producers;
 
 namespace Eventuous.Azure.ServiceBus.Producers;
 
-public class ServiceBusMessageBuilder
+internal class ServiceBusMessageBuilder
 {
     private static readonly HashSet<string> ReservedAttributes = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -17,7 +17,7 @@ public class ServiceBusMessageBuilder
     private readonly ServiceBusMessageAttributes attributes;
     private readonly Action<string>? setActivityMessageType;
 
-    public ServiceBusMessageBuilder(IEventSerializer serializer, string streamName, ServiceBusMessageAttributes attributes, ServiceBusProduceOptions? options = null, Action<string>? setActivityMessageType = null)
+    internal ServiceBusMessageBuilder(IEventSerializer serializer, string streamName, ServiceBusMessageAttributes attributes, ServiceBusProduceOptions? options = null, Action<string>? setActivityMessageType = null)
     {
         this.serializer = serializer;
         this.streamName = streamName;
@@ -25,7 +25,15 @@ public class ServiceBusMessageBuilder
         this.attributes = attributes;
         this.setActivityMessageType = setActivityMessageType;
     }
-    public ServiceBusMessage CreateServiceBusMessage(ProducedMessage message)
+
+    /// <summary>
+    /// Creates a <see cref="ServiceBusMessage"/> from the provided <see cref="ProducedMessage"/>.
+    /// This method serializes the event, sets the necessary properties, and adds custom application properties
+    /// based on the metadata and additional headers.
+    /// </summary>
+    /// <param name="message"></param>
+    /// <returns></returns>
+    internal ServiceBusMessage CreateServiceBusMessage(ProducedMessage message)
     {
         var (messageType, contentType, payload) = serializer.SerializeEvent(message.Message);
         setActivityMessageType?.Invoke(messageType);

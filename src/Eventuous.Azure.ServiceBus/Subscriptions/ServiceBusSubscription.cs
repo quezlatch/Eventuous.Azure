@@ -5,12 +5,23 @@ using Eventuous.Subscriptions.Logging;
 
 namespace Eventuous.Azure.ServiceBus.Subscriptions;
 
+/// <summary>
+/// Represents a Service Bus subscription that processes messages from a queue or topic.
+/// </summary>
 public class ServiceBusSubscription : EventSubscription<ServiceBusSubscriptionOptions>
 {
     private readonly ServiceBusClient client;
     private readonly Func<ProcessErrorEventArgs, Task> defaultErrorHandler;
     private ServiceBusProcessor? processor;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ServiceBusSubscription"/> class.
+    /// </summary>
+    /// <param name="client"></param>
+    /// <param name="options"></param>
+    /// <param name="consumePipe"></param>
+    /// <param name="loggerFactory"></param>
+    /// <param name="eventSerializer"></param>
     public ServiceBusSubscription(ServiceBusClient client, ServiceBusSubscriptionOptions options, ConsumePipe consumePipe, ILoggerFactory? loggerFactory, IEventSerializer? eventSerializer) :
      base(options, consumePipe, loggerFactory, eventSerializer)
     {
@@ -18,6 +29,12 @@ public class ServiceBusSubscription : EventSubscription<ServiceBusSubscriptionOp
         this.defaultErrorHandler = Options.ErrorHandler ?? DefaultErrorHandler;
     }
 
+    /// <summary>
+    /// Subscribes to the Service Bus queue or topic.
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException"></exception>
     protected override ValueTask Subscribe(CancellationToken cancellationToken)
     {
         processor = Options.QueueOrTopic.MakeProcessor(client, Options);
@@ -100,6 +117,11 @@ public class ServiceBusSubscription : EventSubscription<ServiceBusSubscriptionOp
         await Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Unsubscribes from the Service Bus queue or topic and stops processing messages.
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
     protected override ValueTask Unsubscribe(CancellationToken cancellationToken)
     {
         return new ValueTask(processor?.StopProcessingAsync(cancellationToken) ?? Task.CompletedTask);

@@ -4,14 +4,14 @@ using Eventuous.Producers;
 
 namespace Eventuous.Azure.ServiceBus.Producers;
 
-public class ServiceBusMessageBatchBuilder
+internal class ServiceBusMessageBatchBuilder
 {
     private readonly IEventSerializer serializer;
     private readonly ServiceBusMessageAttributes attributes;
     private readonly Action<string>? setActivityMessageType;
     private readonly ServiceBusSender sender;
 
-    public ServiceBusMessageBatchBuilder(ServiceBusSender sender, IEventSerializer serializer, Shared.ServiceBusMessageAttributes attributes, Action<string>? setActivityMessageType)
+    internal ServiceBusMessageBatchBuilder(ServiceBusSender sender, IEventSerializer serializer, Shared.ServiceBusMessageAttributes attributes, Action<string>? setActivityMessageType)
     {
         this.sender = sender;
         this.serializer = serializer;
@@ -19,7 +19,18 @@ public class ServiceBusMessageBatchBuilder
         this.setActivityMessageType = setActivityMessageType;
     }
 
-    public async IAsyncEnumerable<(ServiceBusMessageBatch, IList<ProducedMessage>)> CreateMessageBatches(
+    /// <summary>
+    /// Creates a sequence of <see cref="ServiceBusMessageBatch"/> from the provided produced messages
+    /// so we can optimise if we want to produce a large number of messages at once.
+    /// This is useful for bulk operations where you want to send many messages in a single batch.
+    /// We also return the produced messages so that we can track what was sent in each batch.
+    /// </summary>
+    /// <param name="messages"></param>
+    /// <param name="stream"></param>
+    /// <param name="options"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    internal async IAsyncEnumerable<(ServiceBusMessageBatch, IList<ProducedMessage>)> CreateMessageBatches(
             IEnumerable<ProducedMessage> messages,
             StreamName stream,
             ServiceBusProduceOptions? options,
