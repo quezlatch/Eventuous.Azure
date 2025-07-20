@@ -11,6 +11,7 @@ public class ServiceBusProducer : BaseProducer<ServiceBusProduceOptions>, IHoste
     private readonly ServiceBusProducerOptions options;
     private readonly ILogger<ServiceBusProducer>? log;
     private readonly ServiceBusSender sender;
+    private readonly IEventSerializer serializer;
     private readonly ServiceBusMessageBatchBuilder messageBatchBuilder;
 
     public ServiceBusProducer(
@@ -22,7 +23,8 @@ public class ServiceBusProducer : BaseProducer<ServiceBusProduceOptions>, IHoste
         this.options = options;
         this.log = log;
         this.sender = client.CreateSender(options.QueueOrTopicName, options.SenderOptions);
-        this.messageBatchBuilder = new ServiceBusMessageBatchBuilder(sender, serializer, options.Attributes, SetActivityMessageType);
+        this.serializer = serializer ?? DefaultEventSerializer.Instance;
+        this.messageBatchBuilder = new ServiceBusMessageBatchBuilder(sender, this.serializer, options.Attributes, SetActivityMessageType);
         log?.LogInformation("ServiceBusProducer created for {QueueOrTopicName}", options.QueueOrTopicName);
     }
 
@@ -49,6 +51,44 @@ public class ServiceBusProducer : BaseProducer<ServiceBusProduceOptions>, IHoste
     }
 
     protected override async Task ProduceMessages(StreamName stream, IEnumerable<ProducedMessage> messages, ServiceBusProduceOptions? options, CancellationToken cancellationToken = default)
+    {
+        if (messages is ProducedMessage[] singleMessage && singleMessage.Length == 1)
+        {
+            await ProcessSingleMessage(stream, options, singleMessage, cancellationToken);
+        }
+        else
+        {
+            await ProcessMessagesInBatches(stream, messages, options, cancellationToken);
+        }
+    }
+
+    private async Task ProcessSingleMessage(StreamName stream, ServiceBusProduceOptions? options, ProducedMessage[] singleMessage, CancellationToken cancellationToken)
+    {
+        var message = singleMessage[0];
+        var serviceBusMessage = new ServiceBusMessageBuilder(
+            serializer,
+            stream,
+            this.options.Attributes,
+            options,
+            SetActivityMessageType
+        ).CreateServiceBusMessage(message);
+
+        log?.LogInformation("Sending single message to {QueueOrTopicName}", this.options.QueueOrTopicName);
+        try
+        {
+            await sender.SendMessageAsync(serviceBusMessage, cancellationToken);
+            await message.Ack<ServiceBusProducer>();
+            log?.LogInformation("Single message sent successfully to {QueueOrTopicName}", this.options.QueueOrTopicName);
+        }
+        catch (Exception ex)
+        {
+            log?.LogError(ex, "Failed to send single message to {QueueOrTopicName}", this.options.QueueOrTopicName);
+            await message.Nack<ServiceBusProducer>("Failed to send single message", ex);
+        }
+        return;
+    }
+
+    private async Task ProcessMessagesInBatches(StreamName stream, IEnumerable<ProducedMessage> messages, ServiceBusProduceOptions? options, CancellationToken cancellationToken)
     {
         await foreach (var (batch, produced) in messageBatchBuilder.CreateMessageBatches(messages, stream, options, cancellationToken))
         {

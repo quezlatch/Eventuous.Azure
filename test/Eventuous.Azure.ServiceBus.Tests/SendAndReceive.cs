@@ -8,10 +8,16 @@ public abstract class SendAndReceive : IAsyncLifetime
 {
     public const string QueueName = "queue.1";
     public const string TopicName = "topic.1";
-    public const string SubscriptionName = "subscription.1";
+    /// <summary>
+    /// This is strange. The 'subscription.1' in the emulator has a content type filter. we populate
+    /// the content type but it still gets filtered out. So we use 'subscription.3' which has no filters.
+    /// </summary>
+    public const string SubscriptionName = "subscription.3";
     public static CancellationToken TestCancellationToken => TestContext.Current.CancellationToken;
     private readonly ServiceBusProducer producer;
     private readonly ServiceBusSubscription subscription;
+    private readonly string correlationId;
+    private readonly Metadata metadata;
     private readonly TestEventHandler handler = new();
 
     protected abstract ServiceBusProducerOptions ServiceBusProducerOptions { get; }
@@ -21,7 +27,9 @@ public abstract class SendAndReceive : IAsyncLifetime
     public SendAndReceive(AzureServiceBusFixture fixture)
     {
         producer = fixture.CreateProducer(ServiceBusProducerOptions);
-        subscription = fixture.CreateSubscription(ServiceBusSubscriptionOptions, handler);
+        correlationId = Guid.NewGuid().ToString();
+        subscription = fixture.CreateSubscription(ServiceBusSubscriptionOptions, handler, correlationId);
+        metadata = new Metadata().With(MetaTags.CorrelationId, correlationId);
     }
 
     public class ToQueue : SendAndReceive, IClassFixture<AzureServiceBusFixture>
@@ -82,7 +90,7 @@ public abstract class SendAndReceive : IAsyncLifetime
     public async Task SingleMessage()
     {
         var evt = new SomeEvent { Id = "test-event", Name = "Hello, World!" };
-        await producer.Produce(StreamName, evt, null, cancellationToken: TestCancellationToken);
+        await producer.Produce(StreamName, evt, metadata, cancellationToken: TestCancellationToken);
 
         // Assert
         await handler.AssertThat()
@@ -97,7 +105,7 @@ public abstract class SendAndReceive : IAsyncLifetime
     {
         var count = 1000;
         var events = Enumerable.Range(0, count).Select(i => new SomeEvent { Id = $"test-event-{i}", Name = $"Hello, World! {i}" }).ToList();
-        await producer.Produce(StreamName, events, null, cancellationToken: TestCancellationToken);
+        await producer.Produce(StreamName, events, metadata, cancellationToken: TestCancellationToken);
 
         // Assert
         await handler.AssertThat()

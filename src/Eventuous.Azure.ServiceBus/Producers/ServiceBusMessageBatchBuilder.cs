@@ -11,10 +11,10 @@ public class ServiceBusMessageBatchBuilder
     private readonly Action<string>? setActivityMessageType;
     private readonly ServiceBusSender sender;
 
-    public ServiceBusMessageBatchBuilder(ServiceBusSender sender, IEventSerializer? serializer, Shared.ServiceBusMessageAttributes attributes, Action<string>? setActivityMessageType)
+    public ServiceBusMessageBatchBuilder(ServiceBusSender sender, IEventSerializer serializer, Shared.ServiceBusMessageAttributes attributes, Action<string>? setActivityMessageType)
     {
         this.sender = sender;
-        this.serializer = serializer ?? DefaultEventSerializer.Instance;
+        this.serializer = serializer;
         this.attributes = attributes;
         this.setActivityMessageType = setActivityMessageType;
     }

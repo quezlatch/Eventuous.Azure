@@ -2,7 +2,6 @@ using Eventuous.Subscriptions;
 using Eventuous.Subscriptions.Context;
 using Eventuous.Subscriptions.Filters;
 using Eventuous.Subscriptions.Logging;
-using Microsoft.Extensions.Logging;
 
 namespace Eventuous.Azure.ServiceBus.Subscriptions;
 
@@ -43,6 +42,7 @@ public class ServiceBusSubscription : EventSubscription<ServiceBusSubscriptionOp
 
             var evt = DeserializeData(contentType, eventType, msg.Body, streamName);
 
+            var applicationProperties = msg.ApplicationProperties.Concat(MessageProperties(msg));
             var ctx = new MessageConsumeContext(
                 msg.MessageId,
                 eventType,
@@ -54,7 +54,7 @@ public class ServiceBusSubscription : EventSubscription<ServiceBusSubscriptionOp
                 Sequence++,
                 msg.EnqueuedTime.UtcDateTime,
                 evt,
-                AsMeta(msg.ApplicationProperties),
+                AsMeta(applicationProperties),
                 SubscriptionId,
                 ct
             );
@@ -73,7 +73,22 @@ public class ServiceBusSubscription : EventSubscription<ServiceBusSubscriptionOp
         }
     }
 
-    private Metadata? AsMeta(IReadOnlyDictionary<string, object> applicationProperties) =>
+    private IEnumerable<KeyValuePair<string, object>> MessageProperties(ServiceBusReceivedMessage msg)
+    {
+        var attributes = Options.Attributes;
+        if (msg.CorrelationId is not null)
+            yield return new KeyValuePair<string, object>(attributes.CorrelationId, msg.CorrelationId);
+        if (msg.ReplyTo is not null)
+            yield return new KeyValuePair<string, object>(attributes.ReplyTo, msg.ReplyTo);
+        if (msg.Subject is not null)
+            yield return new KeyValuePair<string, object>(attributes.Subject, msg.Subject);
+        if (msg.To is not null)
+            yield return new KeyValuePair<string, object>(attributes.To, msg.To);
+        if (msg.MessageId is not null)
+            yield return new KeyValuePair<string, object>(attributes.MessageId, msg.MessageId);
+    }
+
+    private static Metadata? AsMeta(IEnumerable<KeyValuePair<string, object>> applicationProperties) =>
         new(applicationProperties.ToDictionary(pair => pair.Key, pair => (object?)pair.Value));
 
     private async Task DefaultErrorHandler(ProcessErrorEventArgs arg)

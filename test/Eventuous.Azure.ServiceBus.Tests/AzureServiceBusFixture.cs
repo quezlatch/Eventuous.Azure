@@ -43,11 +43,23 @@ public class AzureServiceBusFixture(IMessageSink messageSink)
 
     public ServiceBusSubscription CreateSubscription(
         ServiceBusSubscriptionOptions options,
-        IEventHandler handler) => new(
+        IEventHandler handler,
+        string correlationId) => new(
             Client,
             options,
-            new ConsumePipe().AddDefaultConsumer(handler),
+            new ConsumePipe()
+                .AddFilterFirst(FilterOnCorrelationId(correlationId))
+                .AddDefaultConsumer(handler),
             null,
             null
         );
+
+    /// <summary>
+    /// So that we can use the same service bus subscription for multiple tests
+    /// </summary>
+    /// <param name="correlationId"></param>
+    /// <returns></returns>
+    private static MessageFilter FilterOnCorrelationId(string correlationId) =>
+        new(message =>
+            message.Metadata?[MetaTags.CorrelationId]?.ToString() == correlationId);
 }
